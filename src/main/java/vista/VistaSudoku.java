@@ -3,7 +3,10 @@ package vista;
 import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 
 /**
  * Vista de la interfaz gráfica del Sudoku
@@ -18,6 +21,7 @@ public class VistaSudoku extends JFrame {
     private JButton botonGenerar;
     private JButton botonValidar;
     private JButton botonContarSoluciones;
+    private JButton botonAnalisisPerformance;
     private JButton botonSolucionAnterior;
     private JButton botonSolucionSiguiente;
     private JSpinner spinnerPrefijados;
@@ -71,20 +75,61 @@ public class VistaSudoku extends JFrame {
                     }
                 });
                 
+                // Confirmar valor al presionar Enter
+                celda.addActionListener((ActionEvent e) -> {
+                    confirmarValorCelda(celda);
+                });
+                
+                // Confirmar valor al perder el foco
+                celda.addFocusListener(new FocusListener() {
+                    @Override
+                    public void focusGained(FocusEvent e) {
+                        // No hacer nada al ganar foco
+                    }
+                    
+                    @Override
+                    public void focusLost(FocusEvent e) {
+                        confirmarValorCelda(celda);
+                    }
+                });
+                
                 celdas[i][j] = celda;
             }
         }
         
-        botonResolver = new JButton("Resolver");
+        botonResolver = new JButton("Verificar Solución");
         botonLimpiar = new JButton("Limpiar");
         botonGenerar = new JButton("Generar Aleatorio");
         botonValidar = new JButton("Validar");
         botonContarSoluciones = new JButton("Contar Soluciones");
+        botonAnalisisPerformance = new JButton("Análisis de Performance");
         botonSolucionAnterior = new JButton("← Anterior");
         botonSolucionSiguiente = new JButton("Siguiente →");
         
         spinnerPrefijados = new JSpinner(new SpinnerNumberModel(30, 17, 81, 1));
         spinnerPrefijados.setPreferredSize(new Dimension(80, 25));
+        
+        // Obtener el editor del spinner (que es un JTextField)
+        JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinnerPrefijados.getEditor();
+        JTextField campoTexto = editor.getTextField();
+        
+        // Confirmar valor al presionar Enter
+        campoTexto.addActionListener((ActionEvent e) -> {
+            confirmarValorSpinner();
+        });
+        
+        // Confirmar valor al perder el foco
+        campoTexto.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                // No hacer nada al ganar foco
+            }
+            
+            @Override
+            public void focusLost(FocusEvent e) {
+                confirmarValorSpinner();
+            }
+        });
         
         etiquetaEstado = new JLabel(" ");
         etiquetaEstado.setForeground(Color.BLUE);
@@ -120,6 +165,7 @@ public class VistaSudoku extends JFrame {
         panelControles.add(spinnerPrefijados);
         panelControles.add(botonGenerar);
         panelControles.add(botonContarSoluciones);
+        panelControles.add(botonAnalisisPerformance);
         
         // Panel de navegación de soluciones
         JPanel panelSoluciones = new JPanel(new FlowLayout());
@@ -284,12 +330,79 @@ public class VistaSudoku extends JFrame {
         botonContarSoluciones.addActionListener(listener);
     }
     
+    public void agregarListenerAnalisisPerformance(ActionListener listener) {
+        botonAnalisisPerformance.addActionListener(listener);
+    }
+    
     public void agregarListenerSolucionAnterior(ActionListener listener) {
         botonSolucionAnterior.addActionListener(listener);
     }
     
     public void agregarListenerSolucionSiguiente(ActionListener listener) {
         botonSolucionSiguiente.addActionListener(listener);
+    }
+    
+    /**
+     * Confirma el valor de una celda, validando y normalizando el texto
+     */
+    private void confirmarValorCelda(JTextField celda) {
+        String texto = celda.getText().trim();
+        
+        // Si está vacío, dejarlo vacío
+        if (texto.isEmpty()) {
+            celda.setText("");
+            return;
+        }
+        
+        // Intentar parsear el número
+        try {
+            int valor = Integer.parseInt(texto);
+            
+            // Validar que esté entre 1 y 9
+            if (valor >= 1 && valor <= 9) {
+                celda.setText(String.valueOf(valor));
+            } else {
+                // Si está fuera de rango, limpiar
+                celda.setText("");
+            }
+        } catch (NumberFormatException e) {
+            // Si no es un número válido, limpiar
+            celda.setText("");
+        }
+    }
+    
+    /**
+     * Confirma el valor del spinner de valores prefijados
+     */
+    private void confirmarValorSpinner() {
+        try {
+            // Intentar obtener el valor del spinner
+            Object valor = spinnerPrefijados.getValue();
+            
+            // Si el valor es un número, validar que esté en el rango
+            if (valor instanceof Number) {
+                int valorInt = ((Number) valor).intValue();
+                SpinnerNumberModel modelo = (SpinnerNumberModel) spinnerPrefijados.getModel();
+                
+                // Validar que esté en el rango permitido
+                Comparable<?> minComparable = modelo.getMinimum();
+                Comparable<?> maxComparable = modelo.getMaximum();
+                
+                int min = (minComparable instanceof Number) ? ((Number) minComparable).intValue() : 17;
+                int max = (maxComparable instanceof Number) ? ((Number) maxComparable).intValue() : 81;
+                
+                if (valorInt < min) {
+                    spinnerPrefijados.setValue(min);
+                } else if (valorInt > max) {
+                    spinnerPrefijados.setValue(max);
+                } else {
+                    spinnerPrefijados.setValue(valorInt);
+                }
+            }
+        } catch (Exception e) {
+            // Si hay error, restaurar al valor por defecto
+            spinnerPrefijados.setValue(30);
+        }
     }
 }
 
