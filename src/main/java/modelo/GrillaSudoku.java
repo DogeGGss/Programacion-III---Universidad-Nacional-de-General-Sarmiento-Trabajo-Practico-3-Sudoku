@@ -97,15 +97,11 @@ public class GrillaSudoku {
     }
     
     /**
-     * Obtiene una copia de la matriz de la grilla
-     * @return Una copia de la matriz
+     * Crea una copia profunda de la grilla
+     * @return Nueva instancia con los mismos valores
      */
-    public int[][] obtenerGrilla() {
-        int[][] copia = new int[TAMANO][TAMANO];
-        for (int i = 0; i < TAMANO; i++) {
-            System.arraycopy(grilla[i], 0, copia[i], 0, TAMANO);
-        }
-        return copia;
+    public GrillaSudoku clonar() {
+        return new GrillaSudoku(this);
     }
     
     /**
@@ -120,10 +116,10 @@ public class GrillaSudoku {
     }
     
     /**
-     * Obtiene la cantidad de celdas con valores prefijados
-     * @return El número de celdas no vacías
+     * Cuenta cuántas celdas de la grilla están completas (no vacías)
+     * @return El número de celdas completas
      */
-    public int obtenerCantidadPrefijados() {
+    public int contarCeldasCompletas() {
         int contador = 0;
         for (int i = 0; i < TAMANO; i++) {
             for (int j = 0; j < TAMANO; j++) {

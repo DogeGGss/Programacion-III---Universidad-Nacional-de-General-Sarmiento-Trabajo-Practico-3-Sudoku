@@ -1,5 +1,7 @@
 package vista;
 
+import modelo.GrillaSudoku;
+
 import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
@@ -27,13 +29,7 @@ public class VistaSudoku extends JFrame {
     private JSpinner spinnerPrefijados;
     private JLabel etiquetaEstado;
     private JLabel etiquetaInfoSolucion;
-    
-    private int indiceSolucionActual;
-    private java.util.List<int[][]> soluciones;
-    
     public VistaSudoku() {
-        soluciones = new java.util.ArrayList<>();
-        indiceSolucionActual = -1;
         inicializarComponentes();
         organizarComponentes();
     }
@@ -139,6 +135,7 @@ public class VistaSudoku extends JFrame {
         
         botonSolucionAnterior.setEnabled(false);
         botonSolucionSiguiente.setEnabled(false);
+        actualizarNavegacionSoluciones(0, 0);
     }
     
     private void organizarComponentes() {
@@ -213,22 +210,27 @@ public class VistaSudoku extends JFrame {
         }
     }
     
-    public void establecerGrilla(int[][] grilla) {
+    public GrillaSudoku construirGrilla() {
+        GrillaSudoku grilla = new GrillaSudoku();
         for (int i = 0; i < TAMANO; i++) {
             for (int j = 0; j < TAMANO; j++) {
-                establecerValor(i, j, grilla[i][j]);
-            }
-        }
-    }
-    
-    public int[][] obtenerGrilla() {
-        int[][] grilla = new int[TAMANO][TAMANO];
-        for (int i = 0; i < TAMANO; i++) {
-            for (int j = 0; j < TAMANO; j++) {
-                grilla[i][j] = obtenerValor(i, j);
+                grilla.establecerValor(i, j, obtenerValor(i, j));
             }
         }
         return grilla;
+    }
+    
+    public void mostrarGrilla(GrillaSudoku grilla) {
+        if (grilla == null) {
+            limpiarGrilla();
+            return;
+        }
+        resetearColoresCeldas();
+        for (int i = 0; i < TAMANO; i++) {
+            for (int j = 0; j < TAMANO; j++) {
+                establecerValor(i, j, grilla.obtenerValor(i, j));
+            }
+        }
     }
     
     public void limpiarGrilla() {
@@ -237,6 +239,7 @@ public class VistaSudoku extends JFrame {
                 establecerValor(i, j, 0);
             }
         }
+        resetearColoresCeldas();
     }
     
     public int obtenerCantidadPrefijados() {
@@ -251,40 +254,15 @@ public class VistaSudoku extends JFrame {
         etiquetaInfoSolucion.setText(informacion);
     }
     
-    public void establecerSoluciones(java.util.List<int[][]> soluciones) {
-        this.soluciones = soluciones;
-        indiceSolucionActual = -1;
-        actualizarNavegacionSoluciones();
-    }
-    
-    public void mostrarSolucion(int indice) {
-        if (indice >= 0 && indice < soluciones.size()) {
-            indiceSolucionActual = indice;
-            establecerGrilla(soluciones.get(indice));
-            actualizarNavegacionSoluciones();
-        }
-    }
-    
-    private void actualizarNavegacionSoluciones() {
-        botonSolucionAnterior.setEnabled(soluciones.size() > 0 && indiceSolucionActual > 0);
-        botonSolucionSiguiente.setEnabled(soluciones.size() > 0 && indiceSolucionActual < soluciones.size() - 1);
+    public void actualizarNavegacionSoluciones(int indiceActual, int total) {
+        boolean haySoluciones = total > 0;
+        botonSolucionAnterior.setEnabled(haySoluciones && indiceActual > 0);
+        botonSolucionSiguiente.setEnabled(haySoluciones && indiceActual < total - 1);
         
-        if (soluciones.size() > 0 && indiceSolucionActual >= 0) {
-            establecerInfoSolucion("Solución " + (indiceSolucionActual + 1) + " de " + soluciones.size());
+        if (haySoluciones) {
+            establecerInfoSolucion("Solución " + (indiceActual + 1) + " de " + total);
         } else {
             establecerInfoSolucion(" ");
-        }
-    }
-    
-    public void mostrarSolucionAnterior() {
-        if (indiceSolucionActual > 0) {
-            mostrarSolucion(indiceSolucionActual - 1);
-        }
-    }
-    
-    public void mostrarSolucionSiguiente() {
-        if (indiceSolucionActual < soluciones.size() - 1) {
-            mostrarSolucion(indiceSolucionActual + 1);
         }
     }
     

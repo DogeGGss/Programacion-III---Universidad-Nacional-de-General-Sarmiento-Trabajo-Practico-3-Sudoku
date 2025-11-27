@@ -47,7 +47,8 @@ public class ValidadorSudokuTest {
     @Test
     public void testColocacionValidaCajaDiferente() {
         grilla.establecerValor(0, 0, 5);
-        assertTrue(validador.esColocacionValida(grilla, 0, 3, 5));
+        // Colocar el mismo número en la misma fila pero en otra caja sigue siendo inválido
+        assertFalse(validador.esColocacionValida(grilla, 0, 3, 5));
     }
     
     @Test

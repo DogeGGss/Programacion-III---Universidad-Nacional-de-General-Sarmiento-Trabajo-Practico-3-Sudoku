@@ -3,6 +3,9 @@ package modelo;
 import interfaces.ISudokuSolver;
 import interfaces.ISudokuValidator;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Implementación del algoritmo de backtracking para resolver Sudoku
  */
@@ -10,11 +13,14 @@ public class ResolvedorSudoku implements ISudokuSolver {
     private ISudokuValidator validador;
     private int contadorSoluciones;
     private boolean detenerConteo;
+    private List<GrillaSudoku> solucionesGeneradas;
+    
     
     public ResolvedorSudoku(ISudokuValidator validador) {
         this.validador = validador;
         this.contadorSoluciones = 0;
         this.detenerConteo = false;
+        this.solucionesGeneradas = new ArrayList<>();
     }
     
     @Override
@@ -29,6 +35,28 @@ public class ResolvedorSudoku implements ISudokuSolver {
         detenerConteo = false;
         contarSolucionesRecursivo(new GrillaSudoku(grilla));
         return contadorSoluciones;
+    }
+    
+    /**
+     * Calcula y almacena todas las soluciones posibles para la grilla dada.
+     * Devuelve la cantidad de soluciones encontradas.
+     */
+    public int prepararSoluciones(GrillaSudoku grilla) {
+        solucionesGeneradas.clear();
+        generarSoluciones(new GrillaSudoku(grilla));
+        return solucionesGeneradas.size();
+    }
+    
+    /**
+     * Obtiene una solución previamente calculada.
+     * @param indice índice de la solución a recuperar
+     * @return una copia de la solución solicitada o null si el índice es inválido
+     */
+    public GrillaSudoku obtenerSolucion(int indice) {
+        if (indice < 0 || indice >= solucionesGeneradas.size()) {
+            return null;
+        }
+        return solucionesGeneradas.get(indice).clonar();
     }
     
     /**
@@ -61,6 +89,28 @@ public class ResolvedorSudoku implements ISudokuSolver {
         }
         
         return false; // No se encontró solución
+    }
+    
+    /**
+     * Genera todas las soluciones posibles almacenándolas internamente
+     */
+    private void generarSoluciones(GrillaSudoku grilla) {
+        int[] siguienteVacio = encontrarSiguienteVacio(grilla);
+        if (siguienteVacio == null) {
+            solucionesGeneradas.add(grilla.clonar());
+            return;
+        }
+        
+        int fila = siguienteVacio[0];
+        int columna = siguienteVacio[1];
+        
+        for (int valor = 1; valor <= 9; valor++) {
+            if (validador.esColocacionValida(grilla, fila, columna, valor)) {
+                grilla.establecerValor(fila, columna, valor);
+                generarSoluciones(grilla);
+                grilla.establecerValor(fila, columna, 0);
+            }
+        }
     }
     
     /**

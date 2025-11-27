@@ -18,7 +18,7 @@ public class GrillaSudokuTest {
     @Test
     public void testCrearGrillaVacia() {
         assertEquals(9, grilla.obtenerTamano());
-        assertEquals(0, grilla.obtenerCantidadPrefijados());
+        assertEquals(0, grilla.contarCeldasCompletas());
         assertTrue(grilla.estaVacio(0, 0));
     }
     
@@ -68,11 +68,11 @@ public class GrillaSudokuTest {
     
     @Test
     public void testObtenerCantidadPrefijados() {
-        assertEquals(0, grilla.obtenerCantidadPrefijados());
+        assertEquals(0, grilla.contarCeldasCompletas());
         grilla.establecerValor(0, 0, 1);
-        assertEquals(1, grilla.obtenerCantidadPrefijados());
+        assertEquals(1, grilla.contarCeldasCompletas());
         grilla.establecerValor(0, 1, 2);
-        assertEquals(2, grilla.obtenerCantidadPrefijados());
+        assertEquals(2, grilla.contarCeldasCompletas());
     }
     
     @Test
@@ -80,7 +80,7 @@ public class GrillaSudokuTest {
         grilla.establecerValor(0, 0, 5);
         grilla.establecerValor(1, 1, 7);
         grilla.limpiar();
-        assertEquals(0, grilla.obtenerCantidadPrefijados());
+        assertEquals(0, grilla.contarCeldasCompletas());
         assertTrue(grilla.estaVacio(0, 0));
         assertTrue(grilla.estaVacio(1, 1));
     }

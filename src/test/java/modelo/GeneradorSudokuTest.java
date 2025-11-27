@@ -24,7 +24,7 @@ public class GeneradorSudokuTest {
         GrillaSudoku grilla = generador.generarSudokuResuelto();
         
         assertNotNull(grilla);
-        assertEquals(81, grilla.obtenerCantidadPrefijados());
+        assertEquals(81, grilla.contarCeldasCompletas());
         assertTrue(validador.esGrillaValida(grilla));
     }
     
@@ -34,7 +34,7 @@ public class GeneradorSudokuTest {
         GrillaSudoku grilla = generador.generarSudoku(cantidadPrefijados);
         
         assertNotNull(grilla);
-        assertEquals(cantidadPrefijados, grilla.obtenerCantidadPrefijados());
+        assertEquals(cantidadPrefijados, grilla.contarCeldasCompletas());
         assertTrue(validador.esGrillaValida(grilla));
     }
     
@@ -57,7 +57,7 @@ public class GeneradorSudokuTest {
     public void testGenerarSudokuDiferentesCantidades() {
         for (int cantidad = 17; cantidad <= 40; cantidad += 5) {
             GrillaSudoku grilla = generador.generarSudoku(cantidad);
-            assertEquals(cantidad, grilla.obtenerCantidadPrefijados());
+            assertEquals(cantidad, grilla.contarCeldasCompletas());
             assertTrue(validador.esGrillaValida(grilla));
         }
     }

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Controlador que coordina la vista y el modelo
@@ -22,12 +23,16 @@ public class ControladorSudoku {
     private ISudokuValidator validador;
     private ISudokuSolver resolvedor;
     private GeneradorSudoku generador;
+    private AnalizadorPerformance analizadorPerformance;
+    private int indiceSolucionActual = -1;
+    private int totalSoluciones = 0;
     
     public ControladorSudoku(VistaSudoku vista) {
         this.vista = vista;
         this.validador = new ValidadorSudoku();
         this.resolvedor = new ResolvedorSudoku(validador);
         this.generador = new GeneradorSudoku();
+        this.analizadorPerformance = new AnalizadorPerformance();
         
         configurarListeners();
     }
@@ -47,6 +52,7 @@ public class ControladorSudoku {
         @Override
         public void actionPerformed(ActionEvent e) {
             GrillaSudoku grilla = obtenerGrillaDesdeVista();
+            limpiarSoluciones();
             
             // Verificar si la grilla está completa (sin celdas vacías)
             boolean estaCompleta = true;
@@ -103,7 +109,7 @@ public class ControladorSudoku {
         public void actionPerformed(ActionEvent e) {
             vista.limpiarGrilla();
             vista.establecerEstado("Grilla limpiada.");
-            vista.establecerInfoSolucion(" ");
+            limpiarSoluciones();
         }
     }
     
@@ -115,8 +121,8 @@ public class ControladorSudoku {
             try {
                 GrillaSudoku generado = generador.generarSudoku(cantidadPrefijados);
                 actualizarVistaDesdeGrilla(generado);
+                limpiarSoluciones();
                 vista.establecerEstado("Sudoku generado con " + cantidadPrefijados + " valores prefijados.");
-                vista.establecerInfoSolucion(" ");
             } catch (IllegalArgumentException ex) {
                 vista.establecerEstado("Error: " + ex.getMessage());
             }
@@ -146,6 +152,7 @@ public class ControladorSudoku {
             if (validador.tieneConflictos(grilla)) {
                 vista.establecerEstado("Error: La grilla contiene conflictos. No se pueden contar soluciones.");
                 resaltarConflictos(grilla);
+                limpiarSoluciones();
                 return;
             }
             
@@ -156,31 +163,28 @@ public class ControladorSudoku {
             JLabel etiqueta = new JLabel("Calculando, por favor espere...");
             dialogoProgreso.add(etiqueta);
             
-            // Ejecutar en un hilo separado para no bloquear la UI
             new Thread(() -> {
                 SwingUtilities.invokeLater(() -> dialogoProgreso.setVisible(true));
                 
-                int contador = resolvedor.contarSoluciones(grilla);
+                int total = resolvedor.contarSoluciones(grilla.clonar());
+                
+                if (total > 0) {
+                    resolvedor.prepararSoluciones(grilla.clonar());
+                }
                 
                 SwingUtilities.invokeLater(() -> {
                     dialogoProgreso.setVisible(false);
                     
-                    if (contador == 0) {
+                    if (total == 0) {
                         vista.establecerEstado("No se encontraron soluciones.");
-                        vista.establecerInfoSolucion(" ");
-                        vista.establecerSoluciones(new ArrayList<>());
-                    } else if (contador == 1) {
-                        vista.establecerEstado("Se encontró 1 solución única.");
-                        vista.establecerInfoSolucion(" ");
-                        // Resolver y mostrar la solución
-                        GrillaSudoku solucion = new GrillaSudoku(grilla);
-                        resolvedor.resolver(solucion);
-                        vista.establecerGrilla(solucion.obtenerGrilla());
-                        vista.establecerSoluciones(new ArrayList<>());
+                        limpiarSoluciones();
                     } else {
-                        vista.establecerEstado("Se encontraron " + contador + " soluciones.");
-                        // Generar todas las soluciones para navegación
-                        generarTodasLasSoluciones(grilla, contador);
+                        totalSoluciones = total;
+                        vista.establecerEstado(total == 1
+                                ? "Se encontró 1 solución única."
+                                : "Se encontraron " + total + " soluciones.");
+                        indiceSolucionActual = 0;
+                        mostrarSolucionActual();
                     }
                 });
             }).start();
@@ -207,75 +211,29 @@ public class ControladorSudoku {
                 vistaPerformance.setVisible(true);
             });
             
-            // Pequeño delay para que la ventana se muestre
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-            
-            // Ejecutar análisis en un hilo separado
             new Thread(() -> {
                 try {
-                    int ejecucionActual = 0;
                     Map<Integer, Double> resultados = new HashMap<>();
+                    AtomicInteger ejecucionesRealizadas = new AtomicInteger(0);
                     
                     for (Integer cantidad : cantidades) {
-                        List<Long> tiempos = new ArrayList<>();
-                        
-                        for (int i = 0; i < ejecucionesPorCantidad; i++) {
-                            ejecucionActual++;
-                            final int ejecActual = ejecucionActual;
-                            final int cantActual = cantidad;
-                            
-                            // Actualizar progreso
-                            SwingUtilities.invokeLater(() -> {
-                                vistaPerformance.actualizarProgreso(
-                                    ejecActual, 
-                                    totalEjecuciones,
-                                    "Analizando " + cantActual + " valores prefijados (" + 
-                                    ejecActual + "/" + totalEjecuciones + ")"
-                                );
-                            });
-                            
-                            // Pequeño delay para permitir actualización de UI
-                            try {
-                                Thread.sleep(10);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                            }
-                            
-                            // Generar un Sudoku (ya viene con valores prefijados, no resuelto)
-                            GrillaSudoku grilla = generador.generarSudoku(cantidad);
-                            
-                            // Crear una copia para resolver (no modificar la original)
-                            GrillaSudoku grillaParaResolver = new GrillaSudoku(grilla);
-                            
-                            // Medir tiempo de resolución
-                            long tiempoInicio = System.nanoTime();
-                            boolean resuelto = resolvedor.resolver(grillaParaResolver);
-                            long tiempoFin = System.nanoTime();
-                            
-                            // Solo contar si realmente se resolvió
-                            if (resuelto) {
-                                long tiempoMs = (tiempoFin - tiempoInicio) / 1_000_000;
-                                tiempos.add(tiempoMs);
-                            } else {
-                                // Si no se pudo resolver, agregar un tiempo alto para indicar dificultad
-                                tiempos.add(1000L); // 1 segundo como penalización
-                            }
-                        }
-                        
-                        // Calcular promedio
-                        double promedio = tiempos.stream()
-                                .mapToLong(Long::longValue)
-                                .average()
-                                .orElse(0.0);
-                        
-                        resultados.put(cantidad, promedio);
+                        final int cantActual = cantidad;
+                        double promedio = analizadorPerformance.medirTiempoPromedio(
+                                cantActual,
+                                ejecucionesPorCantidad,
+                                incremento -> {
+                                    int actual = ejecucionesRealizadas.incrementAndGet();
+                                    SwingUtilities.invokeLater(() -> vistaPerformance.actualizarProgreso(
+                                            actual,
+                                            totalEjecuciones,
+                                            "Analizando " + cantActual + " valores prefijados (" +
+                                                    actual + "/" + totalEjecuciones + ")"
+                                    ));
+                                }
+                        );
+                        resultados.put(cantActual, promedio);
                     }
                     
-                    // Mostrar resultados
                     SwingUtilities.invokeLater(() -> {
                         vistaPerformance.mostrarResultados(resultados);
                         vistaPerformance.ocultarProgreso();
@@ -300,24 +258,35 @@ public class ControladorSudoku {
     private class ListenerSolucionAnterior implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            vista.mostrarSolucionAnterior();
+            if (totalSoluciones <= 0) {
+                return;
+            }
+            if (indiceSolucionActual > 0) {
+                indiceSolucionActual--;
+                mostrarSolucionActual();
+            }
         }
     }
     
     private class ListenerSolucionSiguiente implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            vista.mostrarSolucionSiguiente();
+            if (totalSoluciones <= 0) {
+                return;
+            }
+            if (indiceSolucionActual < totalSoluciones - 1) {
+                indiceSolucionActual++;
+                mostrarSolucionActual();
+            }
         }
     }
     
     private GrillaSudoku obtenerGrillaDesdeVista() {
-        int[][] datosGrilla = vista.obtenerGrilla();
-        return new GrillaSudoku(datosGrilla);
+        return vista.construirGrilla();
     }
     
     private void actualizarVistaDesdeGrilla(GrillaSudoku grilla) {
-        vista.establecerGrilla(grilla.obtenerGrilla());
+        vista.mostrarGrilla(grilla);
     }
     
     private void resaltarConflictos(GrillaSudoku grilla) {
@@ -340,56 +309,24 @@ public class ControladorSudoku {
         return conflictos;
     }
     
-    private void generarTodasLasSoluciones(GrillaSudoku grilla, int maxSoluciones) {
-        // Para no sobrecargar, limitamos a las primeras 10 soluciones
-        int limite = Math.min(maxSoluciones, 10);
-        List<int[][]> soluciones = new ArrayList<>();
-        
-        // Generar soluciones usando backtracking modificado
-        generarSolucionesRecursivo(new GrillaSudoku(grilla), soluciones, limite);
-        
-        vista.establecerSoluciones(soluciones);
-        if (soluciones.size() > 0) {
-            vista.mostrarSolucion(0);
-            if (maxSoluciones > limite) {
-                vista.establecerEstado("Se encontraron " + maxSoluciones + " soluciones. Mostrando las primeras " + limite + ".");
-            }
-        }
+    private void limpiarSoluciones() {
+        indiceSolucionActual = -1;
+        totalSoluciones = 0;
+        vista.actualizarNavegacionSoluciones(0, 0);
+        vista.establecerInfoSolucion(" ");
     }
     
-    private void generarSolucionesRecursivo(GrillaSudoku grilla, List<int[][]> soluciones, int limite) {
-        if (soluciones.size() >= limite) {
+    private void mostrarSolucionActual() {
+        if (indiceSolucionActual < 0 || indiceSolucionActual >= totalSoluciones) {
+            vista.actualizarNavegacionSoluciones(0, 0);
             return;
         }
-        
-        int[] siguienteVacio = encontrarSiguienteVacio(grilla);
-        
-        if (siguienteVacio == null) {
-            // Solución encontrada
-            soluciones.add(grilla.obtenerGrilla());
+        GrillaSudoku solucion = resolvedor.obtenerSolucion(indiceSolucionActual);
+        if (solucion == null) {
+            vista.actualizarNavegacionSoluciones(0, 0);
             return;
         }
-        
-        int fila = siguienteVacio[0];
-        int columna = siguienteVacio[1];
-        
-        for (int valor = 1; valor <= 9 && soluciones.size() < limite; valor++) {
-            if (validador.esColocacionValida(grilla, fila, columna, valor)) {
-                grilla.establecerValor(fila, columna, valor);
-                generarSolucionesRecursivo(grilla, soluciones, limite);
-                grilla.establecerValor(fila, columna, 0);
-            }
-        }
-    }
-    
-    private int[] encontrarSiguienteVacio(GrillaSudoku grilla) {
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-                if (grilla.estaVacio(i, j)) {
-                    return new int[]{i, j};
-                }
-            }
-        }
-        return null;
+        vista.mostrarGrilla(solucion);
+        vista.actualizarNavegacionSoluciones(indiceSolucionActual, totalSoluciones);
     }
 }

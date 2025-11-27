@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntConsumer;
 
 /**
  * Clase para analizar el rendimiento del resolvedor de Sudoku
@@ -29,28 +30,7 @@ public class AnalizadorPerformance {
         Map<Integer, Double> resultados = new HashMap<>();
         
         for (Integer cantidad : cantidadesPrefijados) {
-            List<Long> tiempos = new ArrayList<>();
-            
-            for (int i = 0; i < ejecucionesPorCantidad; i++) {
-                // Generar un Sudoku
-                GrillaSudoku grilla = generador.generarSudoku(cantidad);
-                
-                // Medir tiempo de resolución
-                long tiempoInicio = System.nanoTime();
-                resolvedor.resolver(grilla);
-                long tiempoFin = System.nanoTime();
-                
-                // Convertir a milisegundos
-                long tiempoMs = (tiempoFin - tiempoInicio) / 1_000_000;
-                tiempos.add(tiempoMs);
-            }
-            
-            // Calcular promedio
-            double promedio = tiempos.stream()
-                    .mapToLong(Long::longValue)
-                    .average()
-                    .orElse(0.0);
-            
+            double promedio = medirTiempoPromedio(cantidad, ejecucionesPorCantidad, null);
             resultados.put(cantidad, promedio);
         }
         
@@ -67,6 +47,33 @@ public class AnalizadorPerformance {
             cantidades.add(i);
         }
         return analizarRendimiento(cantidades, 10);
+    }
+    
+    /**
+     * Calcula el tiempo promedio (en milisegundos) para resolver Sudokus
+     * con una cantidad de valores prefijados dada.
+     * @param cantidadPrefijados Cantidad de valores prefijados
+     * @param ejecuciones Número de Sudokus a generar y resolver
+     * @param progresoCallback Callback opcional para reportar progreso (se invoca después de cada ejecución)
+     * @return Tiempo promedio en milisegundos
+     */
+    public double medirTiempoPromedio(int cantidadPrefijados, int ejecuciones, IntConsumer progresoCallback) {
+        List<Long> tiempos = new ArrayList<>();
+        for (int i = 0; i < ejecuciones; i++) {
+            GrillaSudoku grilla = generador.generarSudoku(cantidadPrefijados);
+            long tiempoInicio = System.nanoTime();
+            resolvedor.resolver(grilla.clonar());
+            long tiempoFin = System.nanoTime();
+            long tiempoMs = (tiempoFin - tiempoInicio) / 1_000_000;
+            tiempos.add(tiempoMs);
+            if (progresoCallback != null) {
+                progresoCallback.accept(i + 1);
+            }
+        }
+        return tiempos.stream()
+                .mapToLong(Long::longValue)
+                .average()
+                .orElse(0.0);
     }
 }
 

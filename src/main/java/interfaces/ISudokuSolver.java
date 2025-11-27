@@ -19,5 +19,19 @@ public interface ISudokuSolver {
      * @return El número de soluciones encontradas
      */
     int contarSoluciones(GrillaSudoku grilla);
+    
+    /**
+     * Calcula y almacena todas las soluciones posibles para la grilla
+     * @param grilla La grilla de Sudoku
+     * @return La cantidad de soluciones encontradas
+     */
+    int prepararSoluciones(GrillaSudoku grilla);
+    
+    /**
+     * Obtiene una solución previamente calculada mediante {@link #prepararSoluciones(GrillaSudoku)}
+     * @param indice Índice de la solución (base cero)
+     * @return La solución solicitada o null si el índice es inválido
+     */
+    GrillaSudoku obtenerSolucion(int indice);
 }
 
